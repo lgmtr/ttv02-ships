@@ -141,12 +141,19 @@ public final class ID implements Comparable<ID>, Serializable {
         return new ID(Arrays.copyOfRange(barr, start, barr.length));
     }
     
+//    public BigInteger toBigInteger() {
+//        final byte[] barr = new byte[21];
+//        barr[0] = 0;
+//        System.arraycopy(getBytes(), 0, barr, 1, 20);
+//        return new BigInteger(barr);
+//    }
+    
     public BigInteger toBigInteger() {
-        final byte[] barr = new byte[21];
-        barr[0] = 0;
-        System.arraycopy(getBytes(), 0, barr, 1, 20);
-        return new BigInteger(barr);
-    }
+		final byte[] barr = new byte[getBytes().length + 1];
+		barr[0] = 0;
+		System.arraycopy(getBytes(), 0, barr, 1, getBytes().length);
+		return new BigInteger(barr);
+	}
 
     public byte[] getBytes() {
 		return id;
