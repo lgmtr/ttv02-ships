@@ -30,6 +30,8 @@ package de.uniba.wiai.lspi.chord.service.impl;
 import static de.uniba.wiai.lspi.util.logging.Logger.LogLevel.DEBUG;
 import static de.uniba.wiai.lspi.util.logging.Logger.LogLevel.INFO;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -68,12 +70,12 @@ public final class NodeImpl extends Node {
 	private ChordImpl impl;
 
 	/**
-	 * Object logger.
-	 * The name of the logger is the name of this class with the nodeID appended. 
-	 * The length of the nodeID depends on the number of bytes that are displayed 
-	 * when the ID is shown in Hex-Representation. See documentation of {@link ID}. 
-	 * E.g. de.uniba.wiai.lspi.chord.service.impl.NodeImpl.FF FF FF FF if the number 
-	 * of displayed Bytes of an ID is 4. 
+	 * Object logger. The name of the logger is the name of this class with the
+	 * nodeID appended. The length of the nodeID depends on the number of bytes
+	 * that are displayed when the ID is shown in Hex-Representation. See
+	 * documentation of {@link ID}. E.g.
+	 * de.uniba.wiai.lspi.chord.service.impl.NodeImpl.FF FF FF FF if the number
+	 * of displayed Bytes of an ID is 4.
 	 */
 	private Logger logger;
 
@@ -93,8 +95,10 @@ public final class NodeImpl extends Node {
 	 * this node.
 	 */
 	private Executor asyncExecutor;
-	
-	private Lock notifyLock; 
+
+	private Lock notifyLock;
+
+	private Integer transactionNumber;
 
 	/**
 	 * Creates that part of the local node which answers remote requests by
@@ -113,13 +117,10 @@ public final class NodeImpl extends Node {
 	 * @throws IllegalArgumentException
 	 *             If any of the parameter has value <code>null</code>.
 	 */
-	NodeImpl(ChordImpl impl, ID nodeID, URL nodeURL, NotifyCallback nodeCallback, References references,
-			Entries entries) {
+	NodeImpl(ChordImpl impl, ID nodeID, URL nodeURL, NotifyCallback nodeCallback, References references, Entries entries) {
 
-		if (impl == null || nodeID == null || nodeURL == null
-				|| references == null || entries == null || nodeCallback == null) {
-			throw new IllegalArgumentException(
-					"Parameters of the constructor may not have a null value!");
+		if (impl == null || nodeID == null || nodeURL == null || references == null || entries == null || nodeCallback == null) {
+			throw new IllegalArgumentException("Parameters of the constructor may not have a null value!");
 		}
 
 		this.logger = Logger.getLogger(NodeImpl.class.getName() + "." + nodeID.toString());
@@ -131,8 +132,10 @@ public final class NodeImpl extends Node {
 		this.notifyCallback = nodeCallback;
 		this.references = references;
 		this.entries = entries;
-		this.notifyLock = new ReentrantLock(true); 
-		
+		this.notifyLock = new ReentrantLock(true);
+
+		// Init transactionNumber
+		this.transactionNumber = 0;
 		// create endpoint for incoming connections
 		this.myEndpoint = Endpoint.createEndpoint(this, nodeURL);
 		this.myEndpoint.listen();
@@ -168,9 +171,10 @@ public final class NodeImpl extends Node {
 	@Override
 	public final List<Node> notify(Node potentialPredecessor) {
 		/*
-		 * Mutual exclusion between notify and notifyAndCopyEntries. 17.03.2008. sven.
+		 * Mutual exclusion between notify and notifyAndCopyEntries. 17.03.2008.
+		 * sven.
 		 */
-		this.notifyLock.lock(); 
+		this.notifyLock.lock();
 		try {
 			// the result will contain the list of successors as well as the
 			// predecessor of this node
@@ -180,17 +184,17 @@ public final class NodeImpl extends Node {
 			if (this.references.getPredecessor() != null) {
 				result.add(this.references.getPredecessor());
 			} else {
-				result.add(potentialPredecessor); 
+				result.add(potentialPredecessor);
 			}
 			result.addAll(this.references.getSuccessors());
 
-//			 add potential predecessor to successor list and finger table and
+			// add potential predecessor to successor list and finger table and
 			// set
 			// it as predecessor if no better predecessor is available
-			this.references.addReferenceAsPredecessor(potentialPredecessor);			
+			this.references.addReferenceAsPredecessor(potentialPredecessor);
 			return result;
 		} finally {
-			this.notifyLock.unlock(); 
+			this.notifyLock.unlock();
 		}
 	}
 
@@ -198,24 +202,22 @@ public final class NodeImpl extends Node {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final RefsAndEntries notifyAndCopyEntries(Node potentialPredecessor)
-			throws CommunicationException {
+	public final RefsAndEntries notifyAndCopyEntries(Node potentialPredecessor) throws CommunicationException {
 		/*
-		 * Mutual exclusion between notify and notifyAndCopyEntries. 17.03.2008. sven.
+		 * Mutual exclusion between notify and notifyAndCopyEntries. 17.03.2008.
+		 * sven.
 		 */
-		this.notifyLock.lock(); 
+		this.notifyLock.lock();
 		try {
 			// copy all entries which lie between the local node ID and the ID
 			// of
 			// the potential predecessor, including those equal to potential
 			// predecessor
-			Set<Entry> copiedEntries = this.entries.getEntriesInInterval(
-					this.nodeID, potentialPredecessor.getNodeID());
+			Set<Entry> copiedEntries = this.entries.getEntriesInInterval(this.nodeID, potentialPredecessor.getNodeID());
 
-			return new RefsAndEntries(this.notify(potentialPredecessor),
-					copiedEntries);
+			return new RefsAndEntries(this.notify(potentialPredecessor), copiedEntries);
 		} finally {
-			this.notifyLock.unlock(); 
+			this.notifyLock.unlock();
 		}
 	}
 
@@ -234,17 +236,14 @@ public final class NodeImpl extends Node {
 	@Override
 	public final void insertEntry(Entry toInsert) throws CommunicationException {
 		if (this.logger.isEnabledFor(DEBUG)) {
-			this.logger.debug("Inserting entry with id " + toInsert.getId()
-					+ " at node " + this.nodeID);
+			this.logger.debug("Inserting entry with id " + toInsert.getId() + " at node " + this.nodeID);
 		}
 
 		// Possible, but rare situation: a new node has joined which now is
 		// responsible for the id!
 		if ((this.references.getPredecessor() == null)
-				|| !toInsert.getId().isInInterval(
-						this.references.getPredecessor().getNodeID(),
-						this.nodeID)) {
-			this.references.getPredecessor().insertEntry(toInsert); 
+				|| !toInsert.getId().isInInterval(this.references.getPredecessor().getNodeID(), this.nodeID)) {
+			this.references.getPredecessor().insertEntry(toInsert);
 			return;
 		}
 
@@ -283,20 +282,16 @@ public final class NodeImpl extends Node {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void removeEntry(Entry entryToRemove)
-			throws CommunicationException {
+	public final void removeEntry(Entry entryToRemove) throws CommunicationException {
 
 		if (this.logger.isEnabledFor(DEBUG)) {
-			this.logger.debug("Removing entry with id " + entryToRemove.getId()
-					+ " at node " + this.nodeID);
+			this.logger.debug("Removing entry with id " + entryToRemove.getId() + " at node " + this.nodeID);
 		}
 
 		// Possible, but rare situation: a new node has joined which now is
 		// responsible for the id!
 		if (this.references.getPredecessor() != null
-				&& !entryToRemove.getId().isInInterval(
-						this.references.getPredecessor().getNodeID(),
-						this.nodeID)) {
+				&& !entryToRemove.getId().isInInterval(this.references.getPredecessor().getNodeID(), this.nodeID)) {
 			this.references.getPredecessor().removeEntry(entryToRemove);
 			return;
 		}
@@ -330,25 +325,21 @@ public final class NodeImpl extends Node {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void removeReplicas(ID sendingNodeID,
-			Set<Entry> replicasToRemove) {
+	public final void removeReplicas(ID sendingNodeID, Set<Entry> replicasToRemove) {
 		if (replicasToRemove.size() == 0) {
 			// remove all replicas in interval
 			boolean debug = this.logger.isEnabledFor(DEBUG);
 			if (debug) {
-				this.logger.debug("Removing replicas. Current no. of entries: "
-						+ this.entries.getNumberOfStoredEntries());
+				this.logger.debug("Removing replicas. Current no. of entries: " + this.entries.getNumberOfStoredEntries());
 			}
 			/*
 			 * Determine entries to remove. These entries are located between
 			 * the id of the local peer and the argument sendingNodeID
 			 */
-			Set<Entry> allReplicasToRemove = this.entries.getEntriesInInterval(
-					this.nodeID, sendingNodeID);
+			Set<Entry> allReplicasToRemove = this.entries.getEntriesInInterval(this.nodeID, sendingNodeID);
 			if (debug) {
 				this.logger.debug("Replicas to remove " + allReplicasToRemove);
-				this.logger.debug("Size of replicas to remove "
-						+ allReplicasToRemove.size());
+				this.logger.debug("Size of replicas to remove " + allReplicasToRemove.size());
 			}
 
 			/*
@@ -357,9 +348,7 @@ public final class NodeImpl extends Node {
 			this.entries.removeAll(allReplicasToRemove);
 
 			if (debug) {
-				this.logger
-						.debug("Removed replicas??? Current no. of entries: "
-								+ this.entries.getNumberOfStoredEntries());
+				this.logger.debug("Removed replicas??? Current no. of entries: " + this.entries.getNumberOfStoredEntries());
 			}
 		} else {
 			// remove only replicas of given entry
@@ -371,19 +360,14 @@ public final class NodeImpl extends Node {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final Set<Entry> retrieveEntries(ID id)
-			throws CommunicationException {
+	public final Set<Entry> retrieveEntries(ID id) throws CommunicationException {
 
 		// Possible, but rare situation: a new node has joined which now is
 		// responsible for the id!
-		if ( (this.references.getPredecessor() != null)
-			  && (!id.isInInterval(this.references.getPredecessor().getNodeID(), this.nodeID)) 
-			  && (!this.nodeID.equals(id)) ) {
-			this.logger.fatal("The rare situation has occured at time "
-					+ System.currentTimeMillis() + ", id to look up=" + id
-					+ ", id of local node=" + this.nodeID
-					+ ", id of predecessor="
-					+ this.references.getPredecessor().getNodeID());
+		if ((this.references.getPredecessor() != null) && (!id.isInInterval(this.references.getPredecessor().getNodeID(), this.nodeID))
+				&& (!this.nodeID.equals(id))) {
+			this.logger.fatal("The rare situation has occured at time " + System.currentTimeMillis() + ", id to look up=" + id
+					+ ", id of local node=" + this.nodeID + ", id of predecessor=" + this.references.getPredecessor().getNodeID());
 			return this.references.getPredecessor().retrieveEntries(id);
 		}
 		// added by INET
@@ -403,18 +387,15 @@ public final class NodeImpl extends Node {
 	@Override
 	final public void leavesNetwork(Node predecessor) {
 		if (this.logger.isEnabledFor(INFO)) {
-			this.logger.info("Leaves network invoked; " + this.nodeID
-					+ ". Updating references.");
+			this.logger.info("Leaves network invoked; " + this.nodeID + ". Updating references.");
 			this.logger.info("New predecessor " + predecessor.getNodeID());
 		}
 		if (this.logger.isEnabledFor(DEBUG)) {
-			this.logger.debug("References before update: "
-					+ this.references.toString());
+			this.logger.debug("References before update: " + this.references.toString());
 		}
 		this.references.removeReference(this.references.getPredecessor());
 		if (this.logger.isEnabledFor(DEBUG)) {
-			this.logger.debug("References after update: "
-					+ this.references.toString());
+			this.logger.debug("References after update: " + this.references.toString());
 		}
 	}
 
@@ -425,18 +406,66 @@ public final class NodeImpl extends Node {
 	final Executor getAsyncExecutor() {
 		return this.asyncExecutor;
 	}
-	
+
 	// TODO: implement this function in TTP
 	@Override
 	public final void broadcast(Broadcast info) throws CommunicationException {
 		if (this.logger.isEnabledFor(DEBUG)) {
 			this.logger.debug(" Send broadcast message");
 		}
-		
+
+		// Check or Update transactionNumber
+		if (info.getTransaction() > this.transactionNumber) {
+			System.out.println("Update transactionNumber from: " + this.transactionNumber + " to: " + info.getTransaction());
+			this.transactionNumber = info.getTransaction();
+		} else {
+			System.out.println("Ignoring old transactionNumber!!");
+			return;
+		}
+
 		// finally inform application
 		if (this.notifyCallback != null) {
 			this.notifyCallback.broadcast(info.getSource(), info.getTarget(), info.getHit());
 		}
+
+		// Unique items in fingerTable
+		Set<Node> fingerTableSet = new HashSet<Node>(this.references.getFingerTableEntries());
+		List<Node> fingerTableList = new ArrayList<>(fingerTableSet);
+		Collections.sort(fingerTableList);
+
+		for (int i = 0; i < fingerTableList.size(); i++) {
+			Node node = fingerTableList.get(i);
+			
+			// Only broadcast to nodes between own ID and range
+            if (!node.getNodeID().isInInterval(this.getNodeID(), info.getRange())) {
+            	System.out.println("NodeImpl: Not in range, not sending broadcast");
+                return;
+            }
+
+			ID rangeHash;
+			if (i == fingerTableList.size() - 1) {
+				// Letzter Eintrag im FingerTable.
+				rangeHash = this.references.getPredecessor().getNodeID();
+			} else {
+				// Eintrag im FingerTable.
+				rangeHash = fingerTableList.get(i + 1).getNodeID();
+			}
+			Broadcast b = new Broadcast(rangeHash, this.getNodeID(), info.getTarget(), info.getTransaction(), info.getHit());
+
+			try {
+				node.broadcast(b);
+			} catch (CommunicationException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public Integer getTransactionNumber() {
+		return transactionNumber;
+	}
+
+	public void setTransactionNumber(Integer transactionNumber) {
+		this.transactionNumber = transactionNumber;
 	}
 
 }

@@ -68,65 +68,55 @@ import de.uniba.wiai.lspi.util.logging.Logger;
  */
 public final class ChordImpl implements Chord, Report, AsynChord {
 
-    /**
+	/**
 	 * Number of threads to allow concurrent invocations of asynchronous
 	 * methods. e.g. {@link ChordImpl#insertAsync(Key, Serializable)}.
 	 */
-	private static final int ASYNC_CALL_THREADS = Integer.parseInt(System
-			.getProperty(ChordImpl.class.getName() + ".AsyncThread.no"));
+	private static final int ASYNC_CALL_THREADS = Integer.parseInt(System.getProperty(ChordImpl.class.getName() + ".AsyncThread.no"));
 
 	/**
 	 * Time in seconds until the stabilize task is started for the first time.
 	 */
-	private static final int STABILIZE_TASK_START = Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.StabilizeTask.start"));
+	private static final int STABILIZE_TASK_START = Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.StabilizeTask.start"));
 
 	/**
 	 * Time in seconds between two invocations of the stabilize task.
 	 */
-	private static final int STABILIZE_TASK_INTERVAL = Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.StabilizeTask.interval"));
+	private static final int STABILIZE_TASK_INTERVAL = Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.StabilizeTask.interval"));
 
 	/**
 	 * Time in seconds until the fix finger task is started for the first time.
 	 */
-	private static final int FIX_FINGER_TASK_START = Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.FixFingerTask.start"));
+	private static final int FIX_FINGER_TASK_START = Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.FixFingerTask.start"));
 
 	/**
 	 * Time in seconds between two invocations of the fix finger task.
 	 */
-	private static final int FIX_FINGER_TASK_INTERVAL = Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.FixFingerTask.interval"));
+	private static final int FIX_FINGER_TASK_INTERVAL = Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.FixFingerTask.interval"));
 
 	/**
 	 * Time in seconds until the check predecessor task is started for the first
 	 * time.
 	 */
-	private static final int CHECK_PREDECESSOR_TASK_START = Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.CheckPredecessorTask.start"));
+	private static final int CHECK_PREDECESSOR_TASK_START = Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.CheckPredecessorTask.start"));
 
 	/**
 	 * Time in seconds between two invocations of the check predecessor task.
 	 */
-	private static final int CHECK_PREDECESSOR_TASK_INTERVAL = Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.CheckPredecessorTask.interval"));
+	private static final int CHECK_PREDECESSOR_TASK_INTERVAL = Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.CheckPredecessorTask.interval"));
 
 	/**
 	 * Number of references in the successor list.
 	 */
-	private static final int NUMBER_OF_SUCCESSORS = (Integer
-			.parseInt(System
-					.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.successors")) < 1) ? 1
-			: Integer
-					.parseInt(System
-							.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.successors"));
+	private static final int NUMBER_OF_SUCCESSORS = (Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.successors")) < 1) ? 1 : Integer.parseInt(System
+			.getProperty("de.uniba.wiai.lspi.chord.service.impl.ChordImpl.successors"));
 
 	/**
 	 * Object logger.
@@ -160,8 +150,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	 * @author sven
 	 * 
 	 */
-	private static class ChordThreadFactory implements
-			java.util.concurrent.ThreadFactory {
+	private static class ChordThreadFactory implements java.util.concurrent.ThreadFactory {
 
 		private String executorName;
 
@@ -196,7 +185,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	 * This node's ID.
 	 */
 	private ID localID;
-	
+
 	private NotifyCallback localCallback;
 
 	/* constructor */
@@ -206,15 +195,11 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	 * Constructor is hidden. Only constructor.
 	 */
 	public ChordImpl() {
-		this.logger = Logger.getLogger(ChordImpl.class.getName()
-				+ ".unidentified");
+		this.logger = Logger.getLogger(ChordImpl.class.getName() + ".unidentified");
 		this.logger.debug("Logger initialized.");
 
-		this.maintenanceTasks = new ScheduledThreadPoolExecutor(3,
-				new ChordThreadFactory("MaintenanceTaskExecution"));
-		this.asyncExecutor = Executors.newFixedThreadPool(
-				ChordImpl.ASYNC_CALL_THREADS, new ChordThreadFactory(
-						"AsynchronousExecution"));
+		this.maintenanceTasks = new ScheduledThreadPoolExecutor(3, new ChordThreadFactory("MaintenanceTaskExecution"));
+		this.asyncExecutor = Executors.newFixedThreadPool(ChordImpl.ASYNC_CALL_THREADS, new ChordThreadFactory("AsynchronousExecution"));
 		this.hashFunction = HashFunction.getHashFunction();
 		logger.info("ChordImpl initialized!");
 	}
@@ -238,15 +223,13 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	public final void setURL(URL nodeURL) {
 
 		if (nodeURL == null) {
-			NullPointerException e = new NullPointerException(
-					"Cannot set URL to null!");
+			NullPointerException e = new NullPointerException("Cannot set URL to null!");
 			this.logger.error("Null pointer", e);
 			throw e;
 		}
 
 		if (this.localNode != null) {
-			IllegalStateException e = new IllegalStateException(
-					"URL cannot be set after creating or joining a network!");
+			IllegalStateException e = new IllegalStateException("URL cannot be set after creating or joining a network!");
 			this.logger.error("Illegal state.", e);
 			throw e;
 		}
@@ -259,10 +242,10 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	public final ID getID() {
 		return this.localID;
 	}
-	
+
 	// added by INET
 	@Override
-	public final ID getPredecessorID () {
+	public final ID getPredecessorID() {
 		Node pre = this.references.getPredecessor();
 		if (pre == null) {
 			return null;
@@ -274,30 +257,26 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	public final void setID(ID nodeID) {
 
 		if (nodeID == null) {
-			NullPointerException e = new NullPointerException(
-					"Cannot set ID to null!");
+			NullPointerException e = new NullPointerException("Cannot set ID to null!");
 			this.logger.error("Null pointer", e);
 			throw e;
 		}
 
 		if (this.localNode != null) {
-			IllegalStateException e = new IllegalStateException(
-					"ID cannot be set after creating or joining a network!");
+			IllegalStateException e = new IllegalStateException("ID cannot be set after creating or joining a network!");
 			this.logger.error("Illegal state.", e);
 			throw e;
 		}
 
 		this.localID = nodeID;
-		this.logger = Logger.getLogger(ChordImpl.class.getName() + "."
-				+ this.localID);
+		this.logger = Logger.getLogger(ChordImpl.class.getName() + "." + this.localID);
 	}
 
 	public final void create() throws ServiceException {
 
 		// is node already connected?
 		if (this.localNode != null) {
-			throw new ServiceException(
-					"Cannot create network; node is already connected!");
+			throw new ServiceException("Cannot create network; node is already connected!");
 		}
 
 		// has nodeURL been set?
@@ -319,14 +298,12 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// check if parameters are valid
 		if (localURL1 == null) {
-			throw new NullPointerException(
-					"At least one parameter is null which is not permitted!");
+			throw new NullPointerException("At least one parameter is null which is not permitted!");
 		}
 
 		// is node already connected?
 		if (this.localNode != null) {
-			throw new ServiceException(
-					"Cannot create network; node is already connected!");
+			throw new ServiceException("Cannot create network; node is already connected!");
 		}
 
 		// set nodeURL
@@ -342,19 +319,16 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 	}
 
-	public final void create(URL localURL1, ID localID1)
-			throws ServiceException {
+	public final void create(URL localURL1, ID localID1) throws ServiceException {
 
 		// check if parameters are valid
 		if (localURL1 == null || localID1 == null) {
-			throw new IllegalArgumentException(
-					"At least one parameter is null which is not permitted!");
+			throw new IllegalArgumentException("At least one parameter is null which is not permitted!");
 		}
 
 		// is node already connected?
 		if (this.localNode != null) {
-			throw new ServiceException(
-					"Cannot create network; node is already connected!");
+			throw new ServiceException("Cannot create network; node is already connected!");
 		}
 
 		// set nodeURL
@@ -385,17 +359,13 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// create local repository for node references
 		if (NUMBER_OF_SUCCESSORS >= 1) {
-			this.references = new References(this.getID(), this.getURL(), 
-					NUMBER_OF_SUCCESSORS, this.entries);
+			this.references = new References(this.getID(), this.getURL(), NUMBER_OF_SUCCESSORS, this.entries);
 		} else {
-			throw new RuntimeException(
-					"NUMBER_OF_SUCCESSORS intialized with wrong value! "
-							+ NUMBER_OF_SUCCESSORS);
+			throw new RuntimeException("NUMBER_OF_SUCCESSORS intialized with wrong value! " + NUMBER_OF_SUCCESSORS);
 		}
 
 		// create NodeImpl instance for communication
-		this.localNode = new NodeImpl(this, this.getID(), this.localURL, this.localCallback,
-				this.references, this.entries);
+		this.localNode = new NodeImpl(this, this.getID(), this.localURL, this.localCallback, this.references, this.entries);
 
 		// create tasks for fixing finger table, checking predecessor and
 		// stabilizing
@@ -414,21 +384,16 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	private final void createTasks() {
 
 		// start thread which periodically stabilizes with successor
-		this.maintenanceTasks.scheduleWithFixedDelay(new StabilizeTask(
-				this.localNode, this.references, this.entries),
-				ChordImpl.STABILIZE_TASK_START,
-				ChordImpl.STABILIZE_TASK_INTERVAL, TimeUnit.SECONDS);
+		this.maintenanceTasks.scheduleWithFixedDelay(new StabilizeTask(this.localNode, this.references, this.entries),
+				ChordImpl.STABILIZE_TASK_START, ChordImpl.STABILIZE_TASK_INTERVAL, TimeUnit.SECONDS);
 
 		// start thread which periodically attempts to fix finger table
-		this.maintenanceTasks.scheduleWithFixedDelay(new FixFingerTask(
-				this.localNode, this.getID(), this.references),
-				ChordImpl.FIX_FINGER_TASK_START,
-				ChordImpl.FIX_FINGER_TASK_INTERVAL, TimeUnit.SECONDS);
+		this.maintenanceTasks.scheduleWithFixedDelay(new FixFingerTask(this.localNode, this.getID(), this.references),
+				ChordImpl.FIX_FINGER_TASK_START, ChordImpl.FIX_FINGER_TASK_INTERVAL, TimeUnit.SECONDS);
 
 		// start thread which periodically checks whether predecessor has
 		// failed
-		this.maintenanceTasks.scheduleWithFixedDelay(new CheckPredecessorTask(
-				this.references), ChordImpl.CHECK_PREDECESSOR_TASK_START,
+		this.maintenanceTasks.scheduleWithFixedDelay(new CheckPredecessorTask(this.references), ChordImpl.CHECK_PREDECESSOR_TASK_START,
 				ChordImpl.CHECK_PREDECESSOR_TASK_INTERVAL, TimeUnit.SECONDS);
 	}
 
@@ -436,20 +401,17 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// check if parameters are valid
 		if (bootstrapURL == null) {
-			throw new NullPointerException(
-					"At least one parameter is null which is not permitted!");
+			throw new NullPointerException("At least one parameter is null which is not permitted!");
 		}
 
 		// is node already connected?
 		if (this.localNode != null) {
-			throw new ServiceException(
-					"Cannot join network; node is already connected!");
+			throw new ServiceException("Cannot join network; node is already connected!");
 		}
 
 		// has nodeURL been set?
 		if (this.localURL == null) {
-			throw new ServiceException("Node URL is not set yet! Please "
-					+ "set URL with help of setURL(URL) "
+			throw new ServiceException("Node URL is not set yet! Please " + "set URL with help of setURL(URL) "
 					+ "before invoking join(URL)!");
 		}
 
@@ -463,19 +425,16 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 	}
 
-	public final void join(URL localURL1, URL bootstrapURL)
-			throws ServiceException {
+	public final void join(URL localURL1, URL bootstrapURL) throws ServiceException {
 
 		// check if parameters are valid
 		if (localURL1 == null || bootstrapURL == null) {
-			throw new NullPointerException(
-					"At least one parameter is null which is not permitted!");
+			throw new NullPointerException("At least one parameter is null which is not permitted!");
 		}
 
 		// is node already connected?
 		if (this.localNode != null) {
-			throw new ServiceException(
-					"Cannot join network; node is already connected!");
+			throw new ServiceException("Cannot join network; node is already connected!");
 		}
 
 		// set nodeURL
@@ -491,19 +450,16 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 	}
 
-	public final void join(URL localURL1, ID localID1, URL bootstrapURL)
-			throws ServiceException {
+	public final void join(URL localURL1, ID localID1, URL bootstrapURL) throws ServiceException {
 
 		// check if parameters are valid
 		if (localURL1 == null || localID1 == null || bootstrapURL == null) {
-			throw new NullPointerException(
-					"At least one parameter is null which is not permitted!");
+			throw new NullPointerException("At least one parameter is null which is not permitted!");
 		}
 
 		// is node already connected?
 		if (this.localNode != null) {
-			throw new ServiceException(
-					"Cannot join network; node is already connected!");
+			throw new ServiceException("Cannot join network; node is already connected!");
 		}
 
 		// set nodeURL
@@ -539,27 +495,21 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// create local repository for node references
 		if (NUMBER_OF_SUCCESSORS >= 1) {
-			this.references = new References(this.getID(), this.getURL(), 
-					NUMBER_OF_SUCCESSORS, this.entries);
+			this.references = new References(this.getID(), this.getURL(), NUMBER_OF_SUCCESSORS, this.entries);
 		} else {
-			throw new RuntimeException(
-					"NUMBER_OF_SUCCESSORS intialized with wrong value! "
-							+ NUMBER_OF_SUCCESSORS);
+			throw new RuntimeException("NUMBER_OF_SUCCESSORS intialized with wrong value! " + NUMBER_OF_SUCCESSORS);
 		}
 
 		// create NodeImpl instance for communication
-		this.localNode = new NodeImpl(this, this.getID(), this.localURL, this.localCallback,
-				this.references, this.entries);
+		this.localNode = new NodeImpl(this, this.getID(), this.localURL, this.localCallback, this.references, this.entries);
 
 		// create proxy for outgoing connection to bootstrap node
 		Node bootstrapNode;
 		try {
 			bootstrapNode = Proxy.createConnection(this.localURL, bootstrapURL);
 		} catch (CommunicationException e) {
-			throw new ServiceException(
-					"An error occured when creating a proxy for outgoing "
-							+ "connection to bootstrap node! Join operation"
-							+ "failed!", e);
+			throw new ServiceException("An error occured when creating a proxy for outgoing "
+					+ "connection to bootstrap node! Join operation" + "failed!", e);
 
 		}
 
@@ -573,27 +523,21 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		try {
 			mySuccessor = bootstrapNode.findSuccessor(this.getID());
 		} catch (CommunicationException e1) {
-			throw new ServiceException("An error occured when trying to find "
-					+ "the successor of this node using bootstrap node "
-					+ "with url " + bootstrapURL.toString() + "! Join "
-					+ "operation failed!", e1);
+			throw new ServiceException("An error occured when trying to find " + "the successor of this node using bootstrap node "
+					+ "with url " + bootstrapURL.toString() + "! Join " + "operation failed!", e1);
 		}
 
 		// store reference on my successor
-		this.logger.info(this.localURL + " has successor "
-				+ mySuccessor.getNodeURL());
+		this.logger.info(this.localURL + " has successor " + mySuccessor.getNodeURL());
 		this.references.addReference(mySuccessor);
 
 		// notify successor for the first time and copy keys from successor
 		RefsAndEntries copyOfRefsAndEntries;
 		try {
-			copyOfRefsAndEntries = mySuccessor
-					.notifyAndCopyEntries(this.localNode);
+			copyOfRefsAndEntries = mySuccessor.notifyAndCopyEntries(this.localNode);
 		} catch (CommunicationException e2) {
-			throw new ServiceException("An error occured when contacting "
-					+ "the successor of this node in order to "
-					+ "obtain its references and entries! Join "
-					+ "operation failed!", e2);
+			throw new ServiceException("An error occured when contacting " + "the successor of this node in order to "
+					+ "obtain its references and entries! Join " + "operation failed!", e2);
 		}
 
 		List<Node> refs = copyOfRefsAndEntries.getRefs();
@@ -603,22 +547,18 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		 * predecessor. 10.06.2007 sven.
 		 */
 		boolean predecessorSet = false;
-		//int count = 0;
+		// int count = 0;
 		while (!predecessorSet) {
 			logger.debug("Size of refs: " + refs.size());
 			// there is only one other peer in the network
 			if (refs.size() == 1) {
-				logger
-						.info("Adding successor as predecessor as there are only two peers! "
-								+ mySuccessor);
+				logger.info("Adding successor as predecessor as there are only two peers! " + mySuccessor);
 				this.references.addReferenceAsPredecessor(mySuccessor);
 				predecessorSet = true;
-				logger.debug("Actual predecessor: "
-						+ this.references.getPredecessor());
+				logger.debug("Actual predecessor: " + this.references.getPredecessor());
 			} else {
 				// we got the right predecessor and successor
-				if (this.getID().isInInterval(refs.get(0).getNodeID(),
-						mySuccessor.getNodeID())) {
+				if (this.getID().isInInterval(refs.get(0).getNodeID(), mySuccessor.getNodeID())) {
 					this.references.addReferenceAsPredecessor(refs.get(0));
 					predecessorSet = true;
 				} else {
@@ -629,15 +569,11 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 					logger.info("Wrong successor found. Going backwards!!!");
 					this.references.addReference(refs.get(0));
 					try {
-						copyOfRefsAndEntries = refs.get(0)
-								.notifyAndCopyEntries(this.localNode);
+						copyOfRefsAndEntries = refs.get(0).notifyAndCopyEntries(this.localNode);
 						refs = copyOfRefsAndEntries.getRefs();
 					} catch (CommunicationException e) {
-						throw new ServiceException(
-								"An error occured when contacting "
-										+ "the successor of this node in order to "
-										+ "obtain its references and entries! Join "
-										+ "operation failed!", e);
+						throw new ServiceException("An error occured when contacting " + "the successor of this node in order to "
+								+ "obtain its references and entries! Join " + "operation failed!", e);
 					}
 				}
 			}
@@ -646,14 +582,11 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		// add new references, if pings are successful //removed ping to new
 		// references. 17.09.2007 sven
 		for (Node newReference : copyOfRefsAndEntries.getRefs()) {
-			if (newReference != null && !newReference.equals(this.localNode)
-					&& !this.references.containsReference(newReference)) {
+			if (newReference != null && !newReference.equals(this.localNode) && !this.references.containsReference(newReference)) {
 
 				ChordImpl.this.references.addReference(newReference);
 				if (ChordImpl.this.logger.isEnabledFor(DEBUG)) {
-					ChordImpl.this.logger.debug("Added reference on "
-							+ newReference.getNodeID() + " which responded to "
-							+ "ping request");
+					ChordImpl.this.logger.debug("Added reference on " + newReference.getNodeID() + " which responded to " + "ping request");
 				}
 
 			}
@@ -703,8 +636,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// check parameters
 		if (key == null || s == null) {
-			throw new NullPointerException(
-					"Neither parameter may have value null!");
+			throw new NullPointerException("Neither parameter may have value null!");
 		}
 
 		// determine ID for key
@@ -723,8 +655,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 			responsibleNode = this.findSuccessor(id);
 
 			if (debug) {
-				this.logger.debug("Invoking insertEntry method on node "
-						+ responsibleNode.getNodeID());
+				this.logger.debug("Invoking insertEntry method on node " + responsibleNode.getNodeID());
 			}
 
 			// invoke insertEntry method
@@ -733,11 +664,8 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 				inserted = true;
 			} catch (CommunicationException e1) {
 				if (debug) {
-					this.logger
-							.debug(
-									"An error occured while invoking the insertEntry method "
-											+ " on the appropriate node! Insert operation "
-											+ "failed!", e1);
+					this.logger.debug("An error occured while invoking the insertEntry method "
+							+ " on the appropriate node! Insert operation " + "failed!", e1);
 				}
 				continue;
 			}
@@ -749,8 +677,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// check parameters
 		if (key == null) {
-			NullPointerException e = new NullPointerException(
-					"Key must not have value null!");
+			NullPointerException e = new NullPointerException("Key must not have value null!");
 			this.logger.error("Null pointer", e);
 			throw e;
 		}
@@ -779,11 +706,8 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 				retrieved = true;
 			} catch (CommunicationException e1) {
 				if (debug) {
-					this.logger
-							.debug(
-									"An error occured while invoking the retrieveEntry method "
-											+ " on the appropriate node! Retrieve operation "
-											+ "failed!", e1);
+					this.logger.debug("An error occured while invoking the retrieveEntry method "
+							+ " on the appropriate node! Retrieve operation " + "failed!", e1);
 				}
 				continue;
 			}
@@ -807,14 +731,13 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 		// check parameters
 		if (id == null) {
-			NullPointerException e = new NullPointerException(
-					"ID must not have value null!");
+			NullPointerException e = new NullPointerException("ID must not have value null!");
 			this.logger.error("Null pointer", e);
 			throw e;
 		}
 
 		// determine ID for key
-		//ID id = this.hashFunction.getHashKey(key);
+		// ID id = this.hashFunction.getHashKey(key);
 
 		boolean debug = this.logger.isEnabledFor(DEBUG);
 		if (debug) {
@@ -837,11 +760,8 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 				retrieved = true;
 			} catch (CommunicationException e1) {
 				if (debug) {
-					this.logger
-							.debug(
-									"An error occured while invoking the retrieveEntry method "
-											+ " on the appropriate node! Retrieve operation "
-											+ "failed!", e1);
+					this.logger.debug("An error occured while invoking the retrieveEntry method "
+							+ " on the appropriate node! Retrieve operation " + "failed!", e1);
 				}
 				continue;
 			}
@@ -859,13 +779,12 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		return values;
 
 	}
-	
+
 	public final void remove(Key key, Serializable s) {
 
 		// check parameters
 		if (key == null || s == null) {
-			throw new NullPointerException(
-					"Neither parameter may have value null!");
+			throw new NullPointerException("Neither parameter may have value null!");
 		}
 
 		// determine ID for key
@@ -877,8 +796,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 
 			boolean debug = this.logger.isEnabledFor(DEBUG);
 			if (debug) {
-				this.logger.debug("Removing entry with id " + id
-						+ " and value " + s);
+				this.logger.debug("Removing entry with id " + id + " and value " + s);
 			}
 
 			// find successor of id
@@ -886,8 +804,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 			responsibleNode = findSuccessor(id);
 
 			if (debug) {
-				this.logger.debug("Invoking removeEntry method on node "
-						+ responsibleNode.getNodeID());
+				this.logger.debug("Invoking removeEntry method on node " + responsibleNode.getNodeID());
 			}
 			// invoke removeEntry method
 			try {
@@ -895,11 +812,8 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 				removed = true;
 			} catch (CommunicationException e1) {
 				if (debug) {
-					this.logger
-							.debug(
-									"An error occured while invoking the removeEntry method "
-											+ " on the appropriate node! Remove operation "
-											+ "failed!", e1);
+					this.logger.debug("An error occured while invoking the removeEntry method "
+							+ " on the appropriate node! Remove operation " + "failed!", e1);
 				}
 				continue;
 			}
@@ -915,11 +829,8 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	 */
 	@Override
 	public final String toString() {
-		return "Chord node: id = "
-				+ (this.localID == null ? "null" : this.localID.toString())
-				+ ", url = "
-				+ (this.localURL == null ? "null" : this.localURL.toString()
-						+ "\n");
+		return "Chord node: id = " + (this.localID == null ? "null" : this.localID.toString()) + ", url = "
+				+ (this.localURL == null ? "null" : this.localURL.toString() + "\n");
 	}
 
 	/**
@@ -934,8 +845,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	final Node findSuccessor(ID key) {
 
 		if (key == null) {
-			NullPointerException e = new NullPointerException(
-					"ID to find successor for may not be null!");
+			NullPointerException e = new NullPointerException("ID to find successor for may not be null!");
 			this.logger.error("Null pointer.", e);
 			throw e;
 		}
@@ -947,21 +857,15 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		if (successor == null) {
 
 			if (this.logger.isEnabledFor(INFO)) {
-				this.logger
-						.info("I appear to be the only node in the network, so I am "
-								+ "my own "
-								+ "successor; return reference on me: "
-								+ this.getID());
+				this.logger.info("I appear to be the only node in the network, so I am " + "my own "
+						+ "successor; return reference on me: " + this.getID());
 			}
 			return this.localNode;
 		}
 		// check if the key to look up lies between this node and its successor
-		else if (key.isInInterval(this.getID(), successor.getNodeID())
-				|| key.equals(successor.getNodeID())) {
+		else if (key.isInInterval(this.getID(), successor.getNodeID()) || key.equals(successor.getNodeID())) {
 			if (debug) {
-				this.logger
-						.debug("The requested key lies between my own and my "
-								+ "successor's node id; therefore return my successor.");
+				this.logger.debug("The requested key lies between my own and my " + "successor's node id; therefore return my successor.");
 			}
 
 			// try to reach successor
@@ -969,17 +873,13 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 				// successor.ping(); // if methods returns, successor is alive.
 				// ping removed on 17.09.2007. sven
 				if (debug) {
-					this.logger.debug("Returning my successor "
-							+ successor.getNodeID() + " of type "
-							+ successor.getClass());
+					this.logger.debug("Returning my successor " + successor.getNodeID() + " of type " + successor.getClass());
 				}
 				return successor;
 			} catch (Exception e) {
 				// not successful, delete node from successor list and finger
 				// table, and set new successor, if available
-				this.logger
-						.warn("Successor did not respond! Removing it from all "
-								+ "lists and retrying...");
+				this.logger.warn("Successor did not respond! Removing it from all " + "lists and retrying...");
 				this.references.removeReference(successor);
 				return findSuccessor(key);
 			}
@@ -989,26 +889,17 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		// preceding node concerning the key to look up
 		else {
 
-			Node closestPrecedingNode = this.references
-					.getClosestPrecedingNode(key);
+			Node closestPrecedingNode = this.references.getClosestPrecedingNode(key);
 
 			try {
 				if (debug) {
-					this.logger
-							.debug("Asking closest preceding node known to this node for closest preceding node "
-									+ closestPrecedingNode.getNodeID()
-									+ " concerning key " + key + " to look up");
+					this.logger.debug("Asking closest preceding node known to this node for closest preceding node "
+							+ closestPrecedingNode.getNodeID() + " concerning key " + key + " to look up");
 				}
 				return closestPrecedingNode.findSuccessor(key);
 			} catch (CommunicationException e) {
-				this.logger
-						.error("Communication failure while requesting successor "
-								+ "for key "
-								+ key
-								+ " from node "
-								+ closestPrecedingNode.toString()
-								+ " - looking up successor for failed node "
-								+ closestPrecedingNode.toString());
+				this.logger.error("Communication failure while requesting successor " + "for key " + key + " from node "
+						+ closestPrecedingNode.toString() + " - looking up successor for failed node " + closestPrecedingNode.toString());
 				this.references.removeReference(closestPrecedingNode);
 				return findSuccessor(key);
 			}
@@ -1023,7 +914,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	public final String printFingerTable() {
 		return this.references.printFingerTable();
 	}
-	
+
 	public final List<Node> getFingerTable() {
 		return this.references.getFingerTableEntries();
 	}
@@ -1063,8 +954,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		});
 	}
 
-	public void insert(final Key key, final Serializable entry,
-			final ChordCallback callback) {
+	public void insert(final Key key, final Serializable entry, final ChordCallback callback) {
 		final Chord chord = this;
 		this.asyncExecutor.execute(new Runnable() {
 			public void run() {
@@ -1081,8 +971,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 		});
 	}
 
-	public void remove(final Key key, final Serializable entry,
-			final ChordCallback callback) {
+	public void remove(final Key key, final Serializable entry, final ChordCallback callback) {
 		final Chord chord = this;
 		this.asyncExecutor.execute(new Runnable() {
 			public void run() {
@@ -1110,40 +999,48 @@ public final class ChordImpl implements Chord, Report, AsynChord {
 	public ChordFuture removeAsync(Key key, Serializable entry) {
 		return ChordRemoveFuture.create(this.asyncExecutor, this, key, entry);
 	}
-	
-	// TODO: implement this function in TTP 
-	//send broadcast to all nodes in finger table
+
+	// TODO: implement this function in TTP
+	// send broadcast to all nodes in finger table
 	@Override
 	public void broadcast (ID target, Boolean hit) {
 		this.logger.debug("App called broadcast");
 		
+        try {
+            this.localNode.broadcast(new Broadcast(this.getID(), this.getID(), target, this.localNode.getTransactionNumber() + 1, hit));
+        } catch (CommunicationException e) {
+            e.printStackTrace();
+        }
+		
 	}
-	
-	public void setCallback (NotifyCallback callback) {
+
+	public void setCallback(NotifyCallback callback) {
 		if (callback == null) {
-			NullPointerException e = new NullPointerException(
-					"Cannot set callback to null!");
+			NullPointerException e = new NullPointerException("Cannot set callback to null!");
 			this.logger.error("Null pointer", e);
 			throw e;
 		}
 
 		if (this.localNode != null) {
-			IllegalStateException e = new IllegalStateException(
-					"ID cannot be set after creating or joining a network!");
+			IllegalStateException e = new IllegalStateException("ID cannot be set after creating or joining a network!");
 			this.logger.error("Illegal state.", e);
 			throw e;
 		}
 
 		this.localCallback = callback;
-		this.logger = Logger.getLogger(ChordImpl.class.getName() + "."
-				+ this.localCallback);
+		this.logger = Logger.getLogger(ChordImpl.class.getName() + "." + this.localCallback);
 	}
+
 	@Override
 	public void clearCallback() {
 		this.localCallback = null;
 		if (this.localNode != null) {
 			this.localNode.clearCallback();
 		}
+	}
+
+	public NodeImpl getLocalNode() {
+		return localNode;
 	}
 
 }
