@@ -5,6 +5,12 @@ import de.uniba.wiai.lspi.chord.service.NotifyCallback;
 
 public class GameNotify implements NotifyCallback {
 
+	private GameState gameState;
+	
+	public GameNotify(GameState gameState) {
+		this.gameState = gameState;
+	}
+	
 	@Override
 	public void retrieved(ID target) {
 		// TODO Auto-generated method stub
