@@ -11,16 +11,21 @@ public class GameNotify implements NotifyCallback {
 		this.gameState = gameState;
 	}
 	
+	/**
+     * gets called, when someone shoots at us. It calls the proper methods to continue.
+     *
+     * @param target is the target ID
+     */
 	@Override
 	public void retrieved(ID target) {
-		// TODO Auto-generated method stub
-
+		System.out.println(target);
+		gameState.handleHit(target);
+		gameState.shootPlayer();
 	}
 
 	@Override
 	public void broadcast(ID source, ID target, Boolean hit) {
-		// TODO Auto-generated method stub
-
+		gameState.updateGameState(source, target, hit);
 	}
 
 }

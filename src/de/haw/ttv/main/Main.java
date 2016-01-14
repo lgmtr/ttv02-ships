@@ -15,11 +15,11 @@ public class Main {
 
 	// constants for config
 	private static final String PROTOCOL = URL.KNOWN_PROTOCOLS.get(URL.SOCKET_PROTOCOL);
-	// private static final String SERVER_IP = "192.168.1.90";
-	private static final String SERVER_IP = "192.168.99.225";
+	private static final String SERVER_IP = "192.168.1.90";
+	// private static final String SERVER_IP = "192.168.99.225";
 	private static final String SERVER_PORT = "8080";
-	private static final String CLIENT_IP = "192.168.99.225";
-	// private static final String CLIENT_IP = "192.168.1.90";
+	// private static final String CLIENT_IP = "192.168.99.225";
+	private static final String CLIENT_IP = "192.168.1.90";
 	private static final String CLIENT_PORT = "8181";
 
 	// private static final String joinOrCreate = "join";

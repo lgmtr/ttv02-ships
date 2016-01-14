@@ -16,7 +16,7 @@ public class GameState {
 	private static final int SECTOR_COUNT = 100; // Number of Sectors
 	private static final int SHIP_COUNT = 10; // Number of Ships
 	private static final ID BIGGEST_ID = new ID(BigInteger.valueOf(2).pow(160).subtract(BigInteger.ONE).toByteArray());
-	
+
 	private Player ownPlayer;
 	private List<Player> otherPlayerList;
 
@@ -25,24 +25,70 @@ public class GameState {
 	public GameState(Chord chord) {
 		this.chord = chord;
 	}
-	
-	public void shootPlayer(){
-		Random rnd = new Random();
-		Player lowestPlayer = otherPlayerList.get(0);
-		for(Player player : otherPlayerList){
-			if(player.getShipsLeft()<lowestPlayer.getShipsLeft())
-				lowestPlayer = player;
+
+	public void handleHit(ID target) {
+		for (int i = 0; i < ownPlayer.getPlayerSectors().length; i++) {
+			Sector sector = ownPlayer.getPlayerSectors()[i];
+			if (target.isInInterval(sector.getStart(), sector.getEnd())) {
+				if (ownPlayer.getPlayerShips()[i]) {
+					System.err.println("Ship " + ownPlayer.getShipsLeft() + " destroyed!");
+					ownPlayer.setShipsLeft(ownPlayer.getShipsLeft() - 1);
+					chord.broadcast(target, Boolean.TRUE);
+					break;
+				} else {
+					System.out.println("No Ship in this Sector!");
+					chord.broadcast(target, Boolean.FALSE);
+					break;
+				}
+			}
 		}
-		Sector sectorToShoot = null;
-		do{
-			sectorToShoot = lowestPlayer.getPlayerSectors()[rnd.nextInt(SECTOR_COUNT)];
-		}while(sectorToShoot.isFiredAt());
-		System.out.println("shooting at: " + sectorToShoot.getMiddle().toBigInteger());
-        RetrieveThread retrieve = new RetrieveThread(chord, sectorToShoot.getMiddle());
-        retrieve.start();
+		if(ownPlayer.getShipsLeft() < 1){
+			System.out.println("I LOST!");
+			waitTime(10000);
+		} else{
+			shootPlayer();
+			waitTime(500);
+		}
 	}
 	
-	public Player createPlayer(ID playerID, ID from, ID to){
+	public void updateGameState(ID source, ID target, Boolean hit){
+		for(Player player : otherPlayerList){
+			if(player.getPlayerID().compareTo(source) == 0){
+				for(Sector sector : player.getPlayerSectors()){
+					if(target.isInInterval(sector.getStart(), sector.getEnd())){
+						sector.setFiredAt(true);
+						if(hit)
+							player.setShipsLeft(player.getShipsLeft()-1);
+						if(player.getShipsLeft() < 1)
+							System.out.println("Player " + target + " lost!!!");
+						break;
+					}
+				}
+				break;
+			}
+		}
+		
+	}
+
+	public void shootPlayer() {
+		Random rnd = new Random();
+		Player lowestPlayer = otherPlayerList.get(0);
+		for (Player player : otherPlayerList) {
+			if (player.getShipsLeft() < lowestPlayer.getShipsLeft())
+				lowestPlayer = player;
+		}
+		if(lowestPlayer.getPlayerID().compareTo(ownPlayer.getPlayerID()) == 0)
+			throw new IllegalArgumentException();
+		Sector sectorToShoot = null;
+		do {
+			sectorToShoot = lowestPlayer.getPlayerSectors()[rnd.nextInt(SECTOR_COUNT)];
+		} while (sectorToShoot.isFiredAt());
+//		System.out.println("shooting at: " + sectorToShoot.getMiddle().toBigInteger());
+		RetrieveThread retrieve = new RetrieveThread(chord, sectorToShoot.getMiddle());
+		retrieve.start();
+	}
+
+	public Player createPlayer(ID playerID, ID from, ID to) {
 		Player player = new Player();
 		player.setPlayerID(playerID);
 		player.setPlayerSectors(calculateSectors(from, to));
@@ -59,9 +105,9 @@ public class GameState {
 		Sector[] sectors = new Sector[SECTOR_COUNT];
 		ID[] sectorStart = calculateSectorsStart(from, to);
 		for (int i = 0; i < sectorStart.length - 1; i++) {
-			sectors[i] = new Sector(sectorStart[i], sectorStart[i+1]);
+			sectors[i] = new Sector(sectorStart[i], sectorStart[i + 1]);
 		}
-		sectors[sectors.length-1] = new Sector(sectorStart[sectorStart.length-1], to);
+		sectors[sectors.length - 1] = new Sector(sectorStart[sectorStart.length - 1], to);
 		return sectors;
 	}
 
@@ -70,12 +116,12 @@ public class GameState {
 		ID distance;
 
 		// predecessorID might be bigger than our ID, due to Chord circle
-		if (from.compareTo(to) < 0) 
+		if (from.compareTo(to) < 0)
 			distance = to.subtract(from);
-		else 
+		else
 			distance = BIGGEST_ID.subtract(from).add(to);
 		ID step = distance.divide(SECTOR_COUNT);
-		for (int i = 0; i < SECTOR_COUNT; i++) 
+		for (int i = 0; i < SECTOR_COUNT; i++)
 			result[i] = from.add(1).add(step.multiply(i)).mod(BIGGEST_ID);
 		return result;
 	}
@@ -104,22 +150,22 @@ public class GameState {
 		otherPlayerList = new ArrayList<Player>();
 		for (int i = 0; i < upl.size(); i++) {
 			Player newPlayer;
-			if(i==0){
-				newPlayer = createPlayer(upl.get(i), upl.get(upl.size()-1), upl.get(i));
-			}else{
-				newPlayer = createPlayer(upl.get(i), upl.get(i-1), upl.get(i));
+			if (i == 0) {
+				newPlayer = createPlayer(upl.get(i), upl.get(upl.size() - 1), upl.get(i));
+			} else {
+				newPlayer = createPlayer(upl.get(i), upl.get(i - 1), upl.get(i));
 			}
 			newPlayer.setShipsLeft(SHIP_COUNT);
 			otherPlayerList.add(newPlayer);
 		}
 		Player ownPlayer = null;
 		for (Player player : otherPlayerList) {
-			if(player.getPlayerID().equals(this.ownPlayer.getPlayerID()))
+			if (player.getPlayerID().equals(this.ownPlayer.getPlayerID()))
 				ownPlayer = player;
 		}
 		otherPlayerList.remove(ownPlayer);
 	}
-	
+
 	public Player getOwnPlayer() {
 		return ownPlayer;
 	}
@@ -127,5 +173,12 @@ public class GameState {
 	public void setOwnPlayer(Player ownPlayer) {
 		this.ownPlayer = ownPlayer;
 	}
-
+	
+	private void waitTime(int time) {
+		try {
+			Thread.sleep(time);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 }

@@ -416,10 +416,10 @@ public final class NodeImpl extends Node {
 
 		// Check or Update transactionNumber
 		if (info.getTransaction() > this.transactionNumber) {
-			System.out.println("Update transactionNumber from: " + this.transactionNumber + " to: " + info.getTransaction());
+//			System.out.println("Update transactionNumber from: " + this.transactionNumber + " to: " + info.getTransaction());
 			this.transactionNumber = info.getTransaction();
 		} else {
-			System.out.println("Ignoring old transactionNumber!!");
+//			System.out.println("Ignoring old transactionNumber!!");
 			return;
 		}
 
