@@ -1,9 +1,13 @@
 package de.haw.ttv.main;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
+import de.uniba.wiai.lspi.chord.com.Node;
 import de.uniba.wiai.lspi.chord.data.ID;
 import de.uniba.wiai.lspi.chord.service.Chord;
 
@@ -11,11 +15,9 @@ public class GameState {
 
 	private static final int SECTOR_COUNT = 100; // Number of Sectors
 	private static final int SHIP_COUNT = 10; // Number of Ships
-
 	private static final ID BIGGEST_ID = new ID(BigInteger.valueOf(2).pow(160).subtract(BigInteger.ONE).toByteArray());
-
+	
 	private Player ownPlayer;
-
 	private List<Player> otherPlayerList;
 
 	private Chord chord;
@@ -23,50 +25,101 @@ public class GameState {
 	public GameState(Chord chord) {
 		this.chord = chord;
 	}
+	
+	public void shootPlayer(){
+		Random rnd = new Random();
+		Player lowestPlayer = otherPlayerList.get(0);
+		for(Player player : otherPlayerList){
+			if(player.getShipsLeft()<lowestPlayer.getShipsLeft())
+				lowestPlayer = player;
+		}
+		Sector sectorToShoot = null;
+		do{
+			sectorToShoot = lowestPlayer.getPlayerSectors()[rnd.nextInt(SECTOR_COUNT)];
+		}while(sectorToShoot.isFiredAt());
+		System.out.println("shooting at: " + sectorToShoot.getMiddle().toBigInteger());
+        RetrieveThread retrieve = new RetrieveThread(chord, sectorToShoot.getMiddle());
+        retrieve.start();
+	}
+	
+	public Player createPlayer(ID playerID, ID from, ID to){
+		Player player = new Player();
+		player.setPlayerID(playerID);
+		player.setPlayerSectors(calculateSectors(from, to));
+		return player;
+	}
 
 	public void createOwnPlayer() {
-		ownPlayer = new Player();
-		ownPlayer.setPlayerID(chord.getID());
-		ownPlayer.setPlayerSectors(calculateSectors(chord.getPredecessorID(), ownPlayer.getPlayerID()));
+		ownPlayer = createPlayer(chord.getID(), chord.getPredecessorID(), chord.getID());
 		ownPlayer.setPlayerShips(placeShips());
+		ownPlayer.setShipsLeft(SHIP_COUNT);
 	}
 
 	private Sector[] calculateSectors(ID from, ID to) {
 		Sector[] sectors = new Sector[SECTOR_COUNT];
-		ID sectorLength;
-		if (from.compareTo(to) < 0) {
-			sectorLength = to.subtract(from);
-		} else {
-			sectorLength = BIGGEST_ID.subtract(from).add(to);
+		ID[] sectorStart = calculateSectorsStart(from, to);
+		for (int i = 0; i < sectorStart.length - 1; i++) {
+			sectors[i] = new Sector(sectorStart[i], sectorStart[i+1]);
 		}
-		ID startInt = new ID(from.toBigInteger().add(BigInteger.ONE).toByteArray());
-		ID endInt = startInt.add(sectorLength);
-		for (int i = 0; i < sectors.length; i++) {
-			sectors[i] = new Sector(startInt, endInt);
-			startInt = new ID(endInt.toBigInteger().add(BigInteger.ONE).toByteArray());
-			endInt = startInt.add(sectorLength);
-		}
+		sectors[sectors.length-1] = new Sector(sectorStart[sectorStart.length-1], to);
 		return sectors;
 	}
-	
-	private boolean[] placeShips() {
-        Random rnd = new Random();
-        int random;
-        boolean[] ships = new boolean[SECTOR_COUNT];
-        for (int i = 0; i < SHIP_COUNT; i++) {
-            do {
-                random = rnd.nextInt(SECTOR_COUNT);
-            } while (ships[random] == true);
 
-            ships[random] = true;
-        }
-        return ships;
-    }
+	private ID[] calculateSectorsStart(ID from, ID to) {
+		ID[] result = new ID[SECTOR_COUNT];
+		ID distance;
 
-	public void addNewPlayer() {
-
+		// predecessorID might be bigger than our ID, due to Chord circle
+		if (from.compareTo(to) < 0) 
+			distance = to.subtract(from);
+		else 
+			distance = BIGGEST_ID.subtract(from).add(to);
+		ID step = distance.divide(SECTOR_COUNT);
+		for (int i = 0; i < SECTOR_COUNT; i++) 
+			result[i] = from.add(1).add(step.multiply(i)).mod(BIGGEST_ID);
+		return result;
 	}
 
+	private boolean[] placeShips() {
+		Random rnd = new Random();
+		int random;
+		boolean[] ships = new boolean[SECTOR_COUNT];
+		for (int i = 0; i < SHIP_COUNT; i++) {
+			do {
+				random = rnd.nextInt(SECTOR_COUNT);
+			} while (ships[random] == true);
+
+			ships[random] = true;
+		}
+		return ships;
+	}
+
+	public void addPlayers(Set<Node> uniquePlayer, ID ownID) {
+		List<ID> upl = new ArrayList<ID>();
+		upl.add(ownID);
+		for (Node node : uniquePlayer) {
+			upl.add(node.getNodeID());
+		}
+		Collections.sort(upl);
+		otherPlayerList = new ArrayList<Player>();
+		for (int i = 0; i < upl.size(); i++) {
+			Player newPlayer;
+			if(i==0){
+				newPlayer = createPlayer(upl.get(i), upl.get(upl.size()-1), upl.get(i));
+			}else{
+				newPlayer = createPlayer(upl.get(i), upl.get(i-1), upl.get(i));
+			}
+			newPlayer.setShipsLeft(SHIP_COUNT);
+			otherPlayerList.add(newPlayer);
+		}
+		Player ownPlayer = null;
+		for (Player player : otherPlayerList) {
+			if(player.getPlayerID().equals(this.ownPlayer.getPlayerID()))
+				ownPlayer = player;
+		}
+		otherPlayerList.remove(ownPlayer);
+	}
+	
 	public Player getOwnPlayer() {
 		return ownPlayer;
 	}

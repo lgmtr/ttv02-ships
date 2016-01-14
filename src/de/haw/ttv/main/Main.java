@@ -15,11 +15,11 @@ public class Main {
 
 	// constants for config
 	private static final String PROTOCOL = URL.KNOWN_PROTOCOLS.get(URL.SOCKET_PROTOCOL);
-	private static final String SERVER_IP = "192.168.1.90";
-	// private static final String SERVER_IP = "192.168.99.99";
+	// private static final String SERVER_IP = "192.168.1.90";
+	private static final String SERVER_IP = "192.168.99.225";
 	private static final String SERVER_PORT = "8080";
-	// private static final String CLIENT_IP = "192.168.99.225";
-	private static final String CLIENT_IP = "192.168.1.90";
+	private static final String CLIENT_IP = "192.168.99.225";
+	// private static final String CLIENT_IP = "192.168.1.90";
 	private static final String CLIENT_PORT = "8181";
 
 	// private static final String joinOrCreate = "join";
@@ -119,7 +119,7 @@ public class Main {
 		if (input.equals("q")) {
 			System.out.println("Game closed!!");
 			chordImpl.leave();
-		}else{
+		} else {
 			gameStart();
 		}
 	}
@@ -128,9 +128,11 @@ public class Main {
 		System.out.println("MyID in BigInteger: " + chordImpl.getID().toBigInteger());
 		System.out.println("PrID in BigInteger: " + chordImpl.getPredecessorID().toBigInteger());
 		gameState.createOwnPlayer();
-		Sector[] sectors = gameState.getOwnPlayer().getPlayerSectors();
-		for (int i = 0; i < sectors.length; i++) {
-			System.out.println(sectors[i]);
+		waitTime(5000);
+		gameState.addPlayers(new HashSet<Node>(chordImpl.getFingerTable()), gameState.getOwnPlayer().getPlayerID());
+		if (chordImpl.getPredecessorID().compareTo(chordImpl.getID()) > 0) {
+			System.out.println("I Start!!");
+			gameState.shootPlayer();
 		}
 	}
 
