@@ -9,7 +9,7 @@ import java.util.Set;
 
 import de.uniba.wiai.lspi.chord.com.Node;
 import de.uniba.wiai.lspi.chord.data.ID;
-import de.uniba.wiai.lspi.chord.service.Chord;
+import de.uniba.wiai.lspi.chord.service.impl.ChordImpl;
 
 public class GameState {
 
@@ -20,54 +20,51 @@ public class GameState {
 	private Player ownPlayer;
 	private List<Player> otherPlayerList;
 
-	private Chord chord;
+	private ChordImpl chord;
+	
+	private boolean gameRunning = true;
+	
+	private ID playerLost = null;
 
-	public GameState(Chord chord) {
+	public GameState(ChordImpl chord) {
 		this.chord = chord;
 	}
 
 	public void handleHit(ID target) {
-		for (int i = 0; i < ownPlayer.getPlayerSectors().length; i++) {
-			Sector sector = ownPlayer.getPlayerSectors()[i];
-			if (target.isInInterval(sector.getStart(), sector.getEnd())) {
-				if (ownPlayer.getPlayerShips()[i]) {
-					System.err.println("Ship " + ownPlayer.getShipsLeft() + " destroyed!");
-					ownPlayer.setShipsLeft(ownPlayer.getShipsLeft() - 1);
-					chord.broadcast(target, Boolean.TRUE);
-					break;
-				} else {
-					System.out.println("No Ship in this Sector!");
-					chord.broadcast(target, Boolean.FALSE);
-					break;
-				}
-			}
+		ownPlayer.setShootsGet(ownPlayer.getShootsGet() + 1);
+		final boolean handleHit = ownPlayer.handleHit(target);
+		if (handleHit) {
+			chord.broadcast(target, Boolean.TRUE);
+		} else {
+			chord.broadcast(target, Boolean.FALSE);
 		}
-		if(ownPlayer.getShipsLeft() < 1){
+		if (ownPlayer.getShipsLeft() == 0) {
+			gameRunning = false;
+			playerLost = ownPlayer.getPlayerID();
 			System.out.println("I LOST!");
 			waitTime(10000);
-		} else{
+		} else if (ownPlayer.getShipsLeft() > 0) {
+			waitTime(1000);
 			shootPlayer();
-			waitTime(500);
 		}
 	}
-	
-	public void updateGameState(ID source, ID target, Boolean hit){
-		for(Player player : otherPlayerList){
-			if(player.getPlayerID().compareTo(source) == 0){
-				for(Sector sector : player.getPlayerSectors()){
-					if(target.isInInterval(sector.getStart(), sector.getEnd())){
-						sector.setFiredAt(true);
-						if(hit)
-							player.setShipsLeft(player.getShipsLeft()-1);
-						if(player.getShipsLeft() < 1)
-							System.out.println("Player " + target + " lost!!!");
-						break;
+
+	public void updateGameState(ID source, ID target, Boolean hit) {
+		for (Player player : otherPlayerList) {
+			if (source.equals(player.getPlayerID())) {
+				if (hit) {
+					player.setShipsLeft(player.getShipsLeft() - 1);
+					if (player.getShipsLeft() < 0){
+						gameRunning = false;
+						playerLost = source;
+						System.out.println("Player " + target + " lost!!!");
 					}
 				}
+				Sector playerSector = player.getTargetSector(target);
+				playerSector.setFiredAt(true);
 				break;
 			}
 		}
-		
 	}
 
 	public void shootPlayer() {
@@ -77,13 +74,12 @@ public class GameState {
 			if (player.getShipsLeft() < lowestPlayer.getShipsLeft())
 				lowestPlayer = player;
 		}
-		if(lowestPlayer.getPlayerID().compareTo(ownPlayer.getPlayerID()) == 0)
-			throw new IllegalArgumentException();
 		Sector sectorToShoot = null;
 		do {
 			sectorToShoot = lowestPlayer.getPlayerSectors()[rnd.nextInt(SECTOR_COUNT)];
 		} while (sectorToShoot.isFiredAt());
-//		System.out.println("shooting at: " + sectorToShoot.getMiddle().toBigInteger());
+		waitTime(1000);
+		// System.out.println("Shooting at: " + sectorToShoot.getMiddle());
 		RetrieveThread retrieve = new RetrieveThread(chord, sectorToShoot.getMiddle());
 		retrieve.start();
 	}
@@ -150,10 +146,10 @@ public class GameState {
 		otherPlayerList = new ArrayList<Player>();
 		for (int i = 0; i < upl.size(); i++) {
 			Player newPlayer;
-			if (i == 0) {
-				newPlayer = createPlayer(upl.get(i), upl.get(upl.size() - 1), upl.get(i));
+			if ((i + 1) == upl.size()) {
+				newPlayer = createPlayer(upl.get(upl.size() - 1), upl.get(upl.size() - 1), upl.get(0));
 			} else {
-				newPlayer = createPlayer(upl.get(i), upl.get(i - 1), upl.get(i));
+				newPlayer = createPlayer(upl.get(i), upl.get(i), upl.get(i + 1));
 			}
 			newPlayer.setShipsLeft(SHIP_COUNT);
 			otherPlayerList.add(newPlayer);
@@ -173,12 +169,42 @@ public class GameState {
 	public void setOwnPlayer(Player ownPlayer) {
 		this.ownPlayer = ownPlayer;
 	}
-	
+
 	private void waitTime(int time) {
 		try {
 			Thread.sleep(time);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public void showAllPlayersStatus() {
+		System.out.println("====================================================================================");
+		System.out.println("Self ships left: " + ownPlayer.getShipsLeft() + " / Shoots Get: " + ownPlayer.getShootsGet());
+		System.out.print("Player Nr.: ");
+		for (int i = 0; i < otherPlayerList.size(); i++) {
+			System.out.print(i + "\t");
+		}
+		System.out.print("Ships left: ");
+		for (int i = 0; i < otherPlayerList.size(); i++) {
+			System.out.print(otherPlayerList.get(i).getShipsLeft() + "\t");
+		}
+		System.out.println("\n====================================================================================");
+	}
+
+	public boolean isGameRunning() {
+		return gameRunning;
+	}
+
+	public void setGameRunning(boolean gameRunning) {
+		this.gameRunning = gameRunning;
+	}
+
+	public ID getPlayerLost() {
+		return playerLost;
+	}
+
+	public void setPlayerLost(ID playerLost) {
+		this.playerLost = playerLost;
 	}
 }
