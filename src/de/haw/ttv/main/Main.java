@@ -79,7 +79,6 @@ public class Main {
 		propertyLoader();
 		this.chordImpl = new ChordImpl();
 		this.gameState = new GameState(chordImpl);
-//		this.gameNotify = new GameNotify(gameState, chordImpl);
 		this.chordImpl.setCallback(gameState);
 
 		in = new InputThread();
