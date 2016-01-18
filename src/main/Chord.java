@@ -6,135 +6,145 @@ import de.uniba.wiai.lspi.chord.service.ServiceException;
 import de.uniba.wiai.lspi.chord.service.impl.ChordImpl;
 
 import java.net.MalformedURLException;
+import java.util.Scanner;
 
 public class Chord {
 
-    // constants for config
-    private static final String PROTOCOL = URL.KNOWN_PROTOCOLS.get(URL.SOCKET_PROTOCOL);
-    private static final String SERVER_IP = "192.168.99.99";
-    private static final String SERVER_PORT = "8080";
-    private static final String CLIENT_IP = "192.168.99.225";
-    private static final String CLIENT_PORT = "8181";
-    private static final String joinOrCreate = "join"; // "join" and "create" are valid
+	// constants for config
+	private static final String PROTOCOL = URL.KNOWN_PROTOCOLS.get(URL.SOCKET_PROTOCOL);
+//	private static final String SERVER_IP = "192.168.99.99";
+	private static final String SERVER_IP = "192.168.111.184";
+	private static final String SERVER_PORT = "8080";
+//	private static final String CLIENT_IP = "192.168.99.225";
+	private static final String CLIENT_IP = "192.168.111.184";
+	private static final String CLIENT_PORT = "8181";
+	private static final String joinOrCreate = "join"; // "join" and "create"
+														// are valid
 
-    // instances of things
-    private ChordImpl chordImpl;
-    private GameLogic gameLogic;
+	// instances of things
+	private ChordImpl chordImpl;
+	private GameLogic gameLogic;
 
-    public Chord(GameLogic gameLogic) {
-        this.gameLogic = gameLogic;
-    }
+	public Chord(GameLogic gameLogic) {
+		this.gameLogic = gameLogic;
+	}
 
-    /**
-     * Creates or joins a chord Network.
-     */
-    public void init() {
-        if (joinOrCreate.equals("join")) {
-            joinChord();
-        } else if (joinOrCreate.equals("create")) {
-            createChord();
-        } else {
-            System.out.println("ERROR: choose if you want to be server or client!");
-        }
-    }
+	/**
+	 * Creates or joins a chord Network.
+	 */
+	public void init() {
+		Scanner scanner = new Scanner(System.in);
+		// start the game after s was typed in
+		String input;
+		System.out.print("type \"s\" for Server and \"c\" for Client: ");
+		input = scanner.next();
+		scanner.close();
+		if (input.equals("c")) {
+			joinChord();
+		} else if (input.equals("s")) {
+			createChord();
+		} else {
+			System.out.println("ERROR: choose if you want to be server or client!");
+		}
+	}
 
-    /**
-     * creates the chord Network.
-     */
-    private void createChord() {
-    	propertyLoader();
+	/**
+	 * creates the chord Network.
+	 */
+	private void createChord() {
+		propertyLoader();
 
-        URL localURL = null;
-        try {
-            localURL = new URL(PROTOCOL + "://" + SERVER_IP + ":" + SERVER_PORT + "/");
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+		URL localURL = null;
+		try {
+			localURL = new URL(PROTOCOL + "://" + SERVER_IP + ":" + SERVER_PORT + "/");
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
+		}
 
-        chordImpl = new ChordImpl();
-        myNotifyCallback = new GameNotify();
-        myNotifyCallback.setChordClient(gameLogic, chordImpl);
-        chordImpl.setCallback(myNotifyCallback);
+		chordImpl = new ChordImpl();
+		myNotifyCallback = new GameNotify();
+		myNotifyCallback.setChordClient(gameLogic, chordImpl);
+		chordImpl.setCallback(myNotifyCallback);
 
-        try {
-            chordImpl.create(localURL);
-        } catch (ServiceException e) {
-            throw new RuntimeException("Could not create DHT!", e);
-        }
+		try {
+			chordImpl.create(localURL);
+		} catch (ServiceException e) {
+			throw new RuntimeException("Could not create DHT!", e);
+		}
 
-        System.out.println("Chord listens on: " + localURL);
-    }
+		System.out.println("Chord listens on: " + localURL);
+	}
 
-    /**
-     * joins the Chord Network
-     *
-     * @throws RuntimeException
-     */
-    private void joinChord() throws RuntimeException {
-    	propertyLoader();
-    	
-        URL localURL = null;
-        try {
-            localURL = new URL(PROTOCOL + "://" + CLIENT_IP + ":" + CLIENT_PORT + "/");
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+	/**
+	 * joins the Chord Network
+	 *
+	 * @throws RuntimeException
+	 */
+	private void joinChord() throws RuntimeException {
+		propertyLoader();
 
-        chordImpl = new ChordImpl();
-        myNotifyCallback = new GameNotify();
-        myNotifyCallback.setChordClient(gameLogic, chordImpl);
-        chordImpl.setCallback(myNotifyCallback);
+		URL localURL = null;
+		try {
+			localURL = new URL(PROTOCOL + "://" + CLIENT_IP + ":" + CLIENT_PORT + "/");
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
+		}
 
-        URL bootstrapURL = null;
-        try {
-            bootstrapURL = new URL(PROTOCOL + "://" + SERVER_IP + ":" + SERVER_PORT + "/");
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+		chordImpl = new ChordImpl();
+		myNotifyCallback = new GameNotify();
+		myNotifyCallback.setChordClient(gameLogic, chordImpl);
+		chordImpl.setCallback(myNotifyCallback);
 
-        try {
-            chordImpl.join(localURL, bootstrapURL);
-        } catch (ServiceException e) {
-            throw new RuntimeException("Could not join DHT!", e);
-        }
+		URL bootstrapURL = null;
+		try {
+			bootstrapURL = new URL(PROTOCOL + "://" + SERVER_IP + ":" + SERVER_PORT + "/");
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
+		}
 
-        System.out.println("Chord running on: " + localURL);
-        // System.out.println("Chord joined: " + bootstrapURL + "\n");
-    }
+		try {
+			chordImpl.join(localURL, bootstrapURL);
+		} catch (ServiceException e) {
+			throw new RuntimeException("Could not join DHT!", e);
+		}
 
-    private void propertyLoader(){
-		try{
+		System.out.println("Chord running on: " + localURL);
+		// System.out.println("Chord joined: " + bootstrapURL + "\n");
+	}
+
+	private void propertyLoader() {
+		try {
 			PropertiesLoader.loadPropertyFile();
-		}catch(IllegalStateException e){
+		} catch (IllegalStateException e) {
 			System.out.println("Properties already loaded!");
 		}
 	}
-    
-    // Getter and setter
 
-    public ChordImpl getChordImpl() {
-        return chordImpl;
-    }
+	// Getter and setter
 
-    public void setChordImpl(ChordImpl chordImpl) {
-        this.chordImpl = chordImpl;
-    }
+	public ChordImpl getChordImpl() {
+		return chordImpl;
+	}
 
-    private GameNotify myNotifyCallback;
+	public void setChordImpl(ChordImpl chordImpl) {
+		this.chordImpl = chordImpl;
+	}
 
-    public GameNotify getMyNotifyCallback() {
-        return myNotifyCallback;
-    }
+	private GameNotify myNotifyCallback;
 
-    public void setMyNotifyCallback(GameNotify myNotifyCallback) {
-        this.myNotifyCallback = myNotifyCallback;
-    }
+	public GameNotify getMyNotifyCallback() {
+		return myNotifyCallback;
+	}
 
-    public GameLogic getChordClient() {
-        return gameLogic;
-    }
+	public void setMyNotifyCallback(GameNotify myNotifyCallback) {
+		this.myNotifyCallback = myNotifyCallback;
+	}
 
-    public void setChordClient(GameLogic chordClient) {
-        this.gameLogic = chordClient;
-    }
+	public GameLogic getChordClient() {
+		return gameLogic;
+	}
+
+	public void setChordClient(GameLogic chordClient) {
+		this.gameLogic = chordClient;
+	}
 }

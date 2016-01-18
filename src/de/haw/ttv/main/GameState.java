@@ -3,163 +3,163 @@ package de.haw.ttv.main;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import de.uniba.wiai.lspi.chord.com.Node;
 import de.uniba.wiai.lspi.chord.data.ID;
+import de.uniba.wiai.lspi.chord.service.NotifyCallback;
 import de.uniba.wiai.lspi.chord.service.impl.ChordImpl;
 
-public class GameState {
+public class GameState implements NotifyCallback {
 
 	private static final int SECTOR_COUNT = 100; // Number of Sectors
 	private static final int SHIP_COUNT = 10; // Number of Ships
 	private static final ID BIGGEST_ID = new ID(BigInteger.valueOf(2).pow(160).subtract(BigInteger.ONE).toByteArray());
 
 	private Player ownPlayer;
-	private List<Player> otherPlayerList;
+	private List<ID> allPlayerList;
+	private Map<ID, ID[]> allPlayerSectors;
+	private List<ID> sectorsToShoot;
 
-	private ChordImpl chord;
-	
-	private boolean gameRunning = true;
-	
-	private ID playerLost = null;
+	private ChordImpl chordImpl;
+
+	private List<BroadcastLog> broadcastLog;
+
+	private Map<ID, Integer> hitsForID = new HashMap<ID, Integer>();
 
 	public GameState(ChordImpl chord) {
-		this.chord = chord;
-	}
-
-	public void handleHit(ID target) {
-		ownPlayer.setShootsGet(ownPlayer.getShootsGet() + 1);
-		final boolean handleHit = ownPlayer.handleHit(target);
-		if (handleHit) {
-			chord.broadcast(target, Boolean.TRUE);
-		} else {
-			chord.broadcast(target, Boolean.FALSE);
-		}
-		if (ownPlayer.getShipsLeft() == 0) {
-			gameRunning = false;
-			playerLost = ownPlayer.getPlayerID();
-			System.out.println("I LOST!");
-			waitTime(10000);
-		} else if (ownPlayer.getShipsLeft() > 0) {
-			waitTime(1000);
-			shootPlayer();
-		}
-	}
-
-	public void updateGameState(ID source, ID target, Boolean hit) {
-		for (Player player : otherPlayerList) {
-			if (source.equals(player.getPlayerID())) {
-				if (hit) {
-					player.setShipsLeft(player.getShipsLeft() - 1);
-					if (player.getShipsLeft() < 0){
-						gameRunning = false;
-						playerLost = source;
-						System.out.println("Player " + target + " lost!!!");
-					}
-				}
-				Sector playerSector = player.getTargetSector(target);
-				playerSector.setFiredAt(true);
-				break;
-			}
-		}
+		this.chordImpl = chord;
+		this.broadcastLog = new ArrayList<>();
 	}
 
 	public void shootPlayer() {
 		Random rnd = new Random();
-		Player lowestPlayer = otherPlayerList.get(0);
-		for (Player player : otherPlayerList) {
-			if (player.getShipsLeft() < lowestPlayer.getShipsLeft())
-				lowestPlayer = player;
-		}
-		Sector sectorToShoot = null;
-		do {
-			sectorToShoot = lowestPlayer.getPlayerSectors()[rnd.nextInt(SECTOR_COUNT)];
-		} while (sectorToShoot.isFiredAt());
-		waitTime(1000);
-		// System.out.println("Shooting at: " + sectorToShoot.getMiddle());
-		RetrieveThread retrieve = new RetrieveThread(chord, sectorToShoot.getMiddle());
+		RetrieveThread retrieve = new RetrieveThread(chordImpl, sectorsToShoot.get(rnd.nextInt(sectorsToShoot.size())).add(10).mod(BIGGEST_ID));
 		retrieve.start();
 	}
 
-	public Player createPlayer(ID playerID, ID from, ID to) {
+	private Player createPlayer(ID playerID, ID from, ID to) {
 		Player player = new Player();
 		player.setPlayerID(playerID);
-		player.setPlayerSectors(calculateSectors(from, to));
+		player.setSectors(calculateSectors(from, to));
 		return player;
 	}
 
 	public void createOwnPlayer() {
-		ownPlayer = createPlayer(chord.getID(), chord.getPredecessorID(), chord.getID());
-		ownPlayer.setPlayerShips(placeShips());
+		ownPlayer = createPlayer(chordImpl.getID(), chordImpl.getPredecessorID(), chordImpl.getID());
+		ownPlayer.setShipsInSector(setShips());
 		ownPlayer.setShipsLeft(SHIP_COUNT);
 	}
 
-	private Sector[] calculateSectors(ID from, ID to) {
-		Sector[] sectors = new Sector[SECTOR_COUNT];
-		ID[] sectorStart = calculateSectorsStart(from, to);
-		for (int i = 0; i < sectorStart.length - 1; i++) {
-			sectors[i] = new Sector(sectorStart[i], sectorStart[i + 1]);
-		}
-		sectors[sectors.length - 1] = new Sector(sectorStart[sectorStart.length - 1], to);
-		return sectors;
-	}
-
-	private ID[] calculateSectorsStart(ID from, ID to) {
+	private ID[] calculateSectors(ID from, ID to) {
 		ID[] result = new ID[SECTOR_COUNT];
 		ID distance;
-
 		// predecessorID might be bigger than our ID, due to Chord circle
-		if (from.compareTo(to) < 0)
+		if (from.compareTo(to) < 0) {
 			distance = to.subtract(from);
-		else
+		} else {
 			distance = BIGGEST_ID.subtract(from).add(to);
+		}
 		ID step = distance.divide(SECTOR_COUNT);
-		for (int i = 0; i < SECTOR_COUNT; i++)
+		for (int i = 0; i < SECTOR_COUNT; i++) {
 			result[i] = from.add(1).add(step.multiply(i)).mod(BIGGEST_ID);
+		}
 		return result;
 	}
 
-	private boolean[] placeShips() {
+	private boolean[] setShips() {
 		Random rnd = new Random();
 		int random;
 		boolean[] ships = new boolean[SECTOR_COUNT];
+		for (int i = 0; i < ships.length; i++) {
+			ships[i] = false;
+		}
 		for (int i = 0; i < SHIP_COUNT; i++) {
 			do {
 				random = rnd.nextInt(SECTOR_COUNT);
 			} while (ships[random] == true);
-
 			ships[random] = true;
 		}
 		return ships;
 	}
 
-	public void addPlayers(Set<Node> uniquePlayer, ID ownID) {
-		List<ID> upl = new ArrayList<ID>();
-		upl.add(ownID);
+	public void calculateAllPlayers(Set<Node> uniquePlayer, ID ownID) {
+		allPlayerList = new ArrayList<>();
+		allPlayerSectors = new HashMap<>();
+		allPlayerList.add(ownID);
 		for (Node node : uniquePlayer) {
-			upl.add(node.getNodeID());
+			allPlayerList.add(node.getNodeID());
 		}
-		Collections.sort(upl);
-		otherPlayerList = new ArrayList<Player>();
-		for (int i = 0; i < upl.size(); i++) {
-			Player newPlayer;
-			if ((i + 1) == upl.size()) {
-				newPlayer = createPlayer(upl.get(upl.size() - 1), upl.get(upl.size() - 1), upl.get(0));
-			} else {
-				newPlayer = createPlayer(upl.get(i), upl.get(i), upl.get(i + 1));
+		Collections.sort(allPlayerList);
+		for (int i = 0; i < allPlayerList.size() - 1; i++) {
+			ID[] newSectors = calculateSectors(allPlayerList.get(i), allPlayerList.get(i + 1));
+			allPlayerSectors.put(allPlayerList.get(i), newSectors);
+		}
+		// case for the last player
+		ID[] newSectors = calculateSectors(allPlayerList.get(allPlayerList.size() - 1), allPlayerList.get(0));
+		allPlayerSectors.put(allPlayerList.get(allPlayerList.size() - 1), newSectors);
+	}
+
+	public void calculateSectorsToShoot() {
+		sectorsToShoot = new ArrayList<>();
+		// fill List
+		for (ID uniquePlayer : allPlayerList) {
+			for (int j = 0; j < SECTOR_COUNT; j++) {
+				sectorsToShoot.add(allPlayerSectors.get(uniquePlayer)[j]);
 			}
-			newPlayer.setShipsLeft(SHIP_COUNT);
-			otherPlayerList.add(newPlayer);
 		}
-		Player ownPlayer = null;
-		for (Player player : otherPlayerList) {
-			if (player.getPlayerID().equals(this.ownPlayer.getPlayerID()))
-				ownPlayer = player;
+
+		// remove fields, that are destroyed
+		for (BroadcastLog bl : broadcastLog.toArray(new BroadcastLog[0])) {
+			for (ID uniquePlayer : allPlayerList) {
+				ID[] sectors = allPlayerSectors.get(uniquePlayer);
+				int index = isInSector(bl.getTarget(), sectors);
+				if (index != -1) {
+					sectorsToShoot.remove(sectors[index]);
+				}
+			}
 		}
-		otherPlayerList.remove(ownPlayer);
+
+		// remove own fielde
+		for (ID id : ownPlayer.getSectors()) {
+			sectorsToShoot.remove(id);
+		}
+	}
+
+	private int isInSector(ID target, ID[] sector) {
+		if (!target.isInInterval(sector[0], sector[sector.length - 1])) {
+			return -1;
+		}
+
+		for (int i = 0; i < sector.length - 1; i++) {
+			if (target.compareTo(sector[i]) >= 0 && target.compareTo(sector[i + 1]) < 0) {
+				return i;
+			}
+		}
+
+		if (target.compareTo(sector[sector.length - 1]) >= 0 && target.compareTo(findNextPlayer(target)) < 0) {
+			return sector.length - 1;
+		}
+
+		return -1;
+	}
+
+	private ID findNextPlayer(ID target) {
+		List<ID> uniquePlayers = allPlayerList;
+		Collections.sort(uniquePlayers);
+
+		for (int i = 0; i < uniquePlayers.size() - 1; i++) {
+			if (target.isInInterval(uniquePlayers.get(i), uniquePlayers.get(i + 1))) {
+				return uniquePlayers.get(i + 1);
+			}
+		}
+		return uniquePlayers.get(0);
 	}
 
 	public Player getOwnPlayer() {
@@ -170,41 +170,87 @@ public class GameState {
 		this.ownPlayer = ownPlayer;
 	}
 
-	private void waitTime(int time) {
-		try {
-			Thread.sleep(time);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+	public BroadcastLog addBroadcastLog(ID source, ID target, boolean hit) {
+		final BroadcastLog broadcastLogLocal = new BroadcastLog(source, target, hit, chordImpl.getLocalNode().getTransactionNumber());
+		broadcastLog.add(broadcastLogLocal);
+		return broadcastLogLocal;
 	}
 
 	public void showAllPlayersStatus() {
 		System.out.println("====================================================================================");
-		System.out.println("Self ships left: " + ownPlayer.getShipsLeft() + " / Shoots Get: " + ownPlayer.getShootsGet());
+		System.out.println("Self ships left: " + ownPlayer.getShipsLeft());
 		System.out.print("Player Nr.: ");
-		for (int i = 0; i < otherPlayerList.size(); i++) {
+		for (int i = 0; i < allPlayerList.size(); i++) {
 			System.out.print(i + "\t");
 		}
-		System.out.print("Ships left: ");
-		for (int i = 0; i < otherPlayerList.size(); i++) {
-			System.out.print(otherPlayerList.get(i).getShipsLeft() + "\t");
+		System.out.print("\nShips left: ");
+		for (ID player : allPlayerList) {
+			if(hitsForID.containsKey(player)){
+			System.out.print((SHIP_COUNT-hitsForID.get(player)) + "\t");
+			} else {
+				System.out.print(SHIP_COUNT + "\t");
+			}
 		}
 		System.out.println("\n====================================================================================");
 	}
 
-	public boolean isGameRunning() {
-		return gameRunning;
+	private void handleHit(ID target){
+		ID[] sectors = ownPlayer.getSectors();
+		for (int i = 0; i < sectors.length - 1; i++) {
+            if (target.compareTo(sectors[i]) >= 0 && target.compareTo(sectors[i + 1]) < 0) {
+				if(ownPlayer.getShipsInSector()[i]){
+					ownPlayer.setShipsLeft(ownPlayer.getShipsLeft()-1);
+					ownPlayer.getShipsInSector()[i] = false;
+                    chordImpl.broadcast(target, Boolean.TRUE);
+                    break;
+                } else {
+                    chordImpl.broadcast(target, Boolean.FALSE);
+                    break;
+				}
+			}
+		}
+        if (target.compareTo(sectors[sectors.length - 1]) >= 0 && target.compareTo(ownPlayer.getPlayerID()) <= 0) {
+            if (ownPlayer.getShipsInSector()[sectors.length - 1]) {
+                ownPlayer.setShipsLeft(ownPlayer.getShipsLeft()-1);
+                ownPlayer.getShipsInSector()[sectors.length - 1] = false;
+                chordImpl.broadcast(target, Boolean.TRUE);
+            } else {
+                chordImpl.broadcast(target, Boolean.FALSE);
+            }
+        }
+
+        if (ownPlayer.getShipsLeft() < 1) {
+            System.out.println("I LOST!");
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(GameState.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+	}
+	
+	
+	@Override
+	public void retrieved(ID target) {
+		handleHit(target);
+		calculateSectorsToShoot();
+		shootPlayer();
 	}
 
-	public void setGameRunning(boolean gameRunning) {
-		this.gameRunning = gameRunning;
-	}
-
-	public ID getPlayerLost() {
-		return playerLost;
-	}
-
-	public void setPlayerLost(ID playerLost) {
-		this.playerLost = playerLost;
+	@Override
+	public void broadcast(ID source, ID target, Boolean hit) {
+		addBroadcastLog(source, target, hit);
+		if (hit) {
+			if (hitsForID.containsKey(source)) {
+				int hits = hitsForID.get(source) + 1;
+				hitsForID.replace(source, hits);
+				if (hits >= 10) {
+					System.err.println("Player: " + source + " lost!");
+				}
+			} else {
+				hitsForID.put(source, 1);
+			}
+			showAllPlayersStatus();
+		}
 	}
 }

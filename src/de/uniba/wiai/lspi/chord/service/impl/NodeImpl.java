@@ -455,7 +455,7 @@ public final class NodeImpl extends Node {
 			try {
 				node.broadcast(b);
 			} catch (CommunicationException e) {
-//				e.printStackTrace();
+				e.printStackTrace();
 			}
 		}
 	}

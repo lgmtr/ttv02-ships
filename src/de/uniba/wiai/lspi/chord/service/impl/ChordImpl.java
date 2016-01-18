@@ -1009,7 +1009,7 @@ public final class ChordImpl implements Chord, Report, AsynChord {
         try {
             this.localNode.broadcast(new Broadcast(this.getID(), this.getID(), target, this.localNode.getTransactionNumber() + 1, hit));
         } catch (CommunicationException e) {
-//            e.printStackTrace();
+            e.printStackTrace();
         }
 		
 	}

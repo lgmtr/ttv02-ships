@@ -16,12 +16,14 @@ public class Main {
 	// constants for config
 	private static final String PROTOCOL = URL.KNOWN_PROTOCOLS.get(URL.SOCKET_PROTOCOL);
 //	private static final String SERVER_IP = "192.168.1.90";
-	private static final String SERVER_IP = "141.22.88.82";
+	private static final String SERVER_IP = "192.168.111.184";
+//	private static final String SERVER_IP = "141.22.88.82";
 	// private static final String SERVER_IP = "192.168.99.225";
 	private static final String SERVER_PORT = "8080";
 	// private static final String CLIENT_IP = "192.168.99.225";
-	private static final String CLIENT_IP = "141.22.88.82";
+//	private static final String CLIENT_IP = "141.22.88.82";
 //	private static final String CLIENT_IP = "192.168.1.90";
+	private static final String CLIENT_IP = "192.168.111.184";
 	private static final String CLIENT_PORT = "8181";
 
 	// private static final String joinOrCreate = "join";
@@ -60,7 +62,7 @@ public class Main {
 
 	private ChordImpl chordImpl;
 	private GameState gameState;
-	private GameNotify gameNotify;
+//	private GameNotify gameNotify;
 	private String input = "";
 	private InputThread in;
 	private Thread inputListener;
@@ -77,8 +79,8 @@ public class Main {
 		propertyLoader();
 		this.chordImpl = new ChordImpl();
 		this.gameState = new GameState(chordImpl);
-		this.gameNotify = new GameNotify(gameState);
-		this.chordImpl.setCallback(gameNotify);
+//		this.gameNotify = new GameNotify(gameState, chordImpl);
+		this.chordImpl.setCallback(gameState);
 
 		in = new InputThread();
 		inputListener = new Thread(in);
@@ -127,13 +129,12 @@ public class Main {
 	}
 
 	private void gameStart() {
-		System.out.println("MyID in BigInteger: " + chordImpl.getID().toBigInteger());
-		System.out.println("PrID in BigInteger: " + chordImpl.getPredecessorID().toBigInteger());
 		gameState.createOwnPlayer();
 		waitTime(5000);
-		gameState.addPlayers(new HashSet<Node>(chordImpl.getFingerTable()), gameState.getOwnPlayer().getPlayerID());
+		gameState.calculateAllPlayers(new HashSet<Node>(chordImpl.getFingerTable()), gameState.getOwnPlayer().getPlayerID());
 		if (chordImpl.getPredecessorID().compareTo(chordImpl.getID()) > 0) {
 			System.out.println("I Start!!");
+			gameState.calculateSectorsToShoot();
 			gameState.shootPlayer();
 		}
 	}
