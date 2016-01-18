@@ -21,6 +21,6 @@ German instructions: http://inet.haw-hamburg.de/teaching/ws-2015-16/technik-und-
 
 ## Our Tactic
 
-Our "tactic" is to shot at a random sector, which has not yet been shot at, of the player who has the fewest ships left.
+Our "tactic" is to shot at a random sector, which has not yet been shot at.
 In the fact that a ship only covers one sector we can not develop a tactic to shot the enclosed sectors after a hit.
 Besides we log every broadcast to know each number of ships of the other players and every sector that was shot so that we don't shoot it twice.
