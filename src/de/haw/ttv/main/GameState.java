@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -42,6 +43,11 @@ public class GameState implements NotifyCallback {
 		Random rnd = new Random();
 		RetrieveThread retrieve = new RetrieveThread(chordImpl, sectorsToShoot.get(rnd.nextInt(sectorsToShoot.size())).add(10).mod(BIGGEST_ID));
 		retrieve.start();
+	}
+	
+	private void broadcastThreat(ID target, boolean hit){
+		BroadcastThread broadcast = new BroadcastThread(chordImpl, target, hit);
+		broadcast.start();
 	}
 
 	private Player createPlayer(ID playerID, ID from, ID to) {
@@ -109,6 +115,13 @@ public class GameState implements NotifyCallback {
 	public void calculateSectorsToShoot() {
 		sectorsToShoot = new ArrayList<>();
 		// fill List
+		allPlayerList = new ArrayList<>();
+		allPlayerList.add(chordImpl.getID());
+		Set<Node> fingerTable = new HashSet<Node>(chordImpl.getFingerTable());
+		for (Node node : fingerTable) {
+			allPlayerList.add(node.getNodeID());
+		}
+		Collections.sort(allPlayerList);
 		for (ID uniquePlayer : allPlayerList) {
 			for (int j = 0; j < SECTOR_COUNT; j++) {
 				sectorsToShoot.add(allPlayerSectors.get(uniquePlayer)[j]);
@@ -201,10 +214,10 @@ public class GameState implements NotifyCallback {
 				if(ownPlayer.getShipsInSector()[i]){
 					ownPlayer.setShipsLeft(ownPlayer.getShipsLeft()-1);
 					ownPlayer.getShipsInSector()[i] = false;
-                    chordImpl.broadcast(target, Boolean.TRUE);
+                    broadcastThreat(target, Boolean.TRUE);
                     break;
                 } else {
-                    chordImpl.broadcast(target, Boolean.FALSE);
+                	broadcastThreat(target, Boolean.FALSE);
                     break;
 				}
 			}
@@ -213,9 +226,9 @@ public class GameState implements NotifyCallback {
             if (ownPlayer.getShipsInSector()[sectors.length - 1]) {
                 ownPlayer.setShipsLeft(ownPlayer.getShipsLeft()-1);
                 ownPlayer.getShipsInSector()[sectors.length - 1] = false;
-                chordImpl.broadcast(target, Boolean.TRUE);
+                broadcastThreat(target, Boolean.TRUE);
             } else {
-                chordImpl.broadcast(target, Boolean.FALSE);
+            	broadcastThreat(target, Boolean.FALSE);
             }
         }
 
@@ -232,6 +245,7 @@ public class GameState implements NotifyCallback {
 	
 	@Override
 	public void retrieved(ID target) {
+		System.out.println("I was hitted!!");
 		handleHit(target);
 		calculateSectorsToShoot();
 		shootPlayer();

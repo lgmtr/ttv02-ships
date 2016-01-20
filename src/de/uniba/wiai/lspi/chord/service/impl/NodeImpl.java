@@ -416,16 +416,12 @@ public final class NodeImpl extends Node {
 
 		// Check or Update transactionNumber
 		if (info.getTransaction() > this.transactionNumber) {
-//			System.out.println("Update transactionNumber from: " + this.transactionNumber + " to: " + info.getTransaction());
+			// System.out.println("Update transactionNumber from: " +
+			// this.transactionNumber + " to: " + info.getTransaction());
 			this.transactionNumber = info.getTransaction();
 		} else {
-//			System.out.println("Ignoring old transactionNumber!!");
+			// System.out.println("Ignoring old transactionNumber!!");
 			return;
-		}
-
-		// finally inform application
-		if (this.notifyCallback != null) {
-			this.notifyCallback.broadcast(info.getSource(), info.getTarget(), info.getHit());
 		}
 
 		// Unique items in fingerTable
@@ -435,12 +431,12 @@ public final class NodeImpl extends Node {
 
 		for (int i = 0; i < fingerTableList.size(); i++) {
 			Node node = fingerTableList.get(i);
-			
+
 			// Only broadcast to nodes between own ID and range
-            if (!node.getNodeID().isInInterval(this.getNodeID(), info.getRange())) {
-            	System.out.println("NodeImpl: Not in range, not sending broadcast");
-                return;
-            }
+			if (!node.getNodeID().isInInterval(this.getNodeID(), info.getRange())) {
+				System.out.println("NodeImpl: Not in range, not sending broadcast");
+				return;
+			}
 
 			ID rangeHash;
 			if (i == fingerTableList.size() - 1) {
@@ -457,6 +453,10 @@ public final class NodeImpl extends Node {
 			} catch (CommunicationException e) {
 				e.printStackTrace();
 			}
+		}
+		// finally inform application
+		if (this.notifyCallback != null) {
+			this.notifyCallback.broadcast(info.getSource(), info.getTarget(), info.getHit());
 		}
 	}
 

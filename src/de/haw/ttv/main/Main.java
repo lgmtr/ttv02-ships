@@ -16,15 +16,16 @@ public class Main {
 	// constants for config
 	private static final String PROTOCOL = URL.KNOWN_PROTOCOLS.get(URL.SOCKET_PROTOCOL);
 //	private static final String SERVER_IP = "192.168.1.90";
-	private static final String SERVER_IP = "192.168.111.184";
+//	private static final String SERVER_IP = "192.168.111.184";
+	private static final String SERVER_IP = "192.168.15.173";
 //	private static final String SERVER_IP = "141.22.88.82";
 	// private static final String SERVER_IP = "192.168.99.225";
-	private static final String SERVER_PORT = "8080";
+	private static final String SERVER_PORT = "9050";
 	// private static final String CLIENT_IP = "192.168.99.225";
 //	private static final String CLIENT_IP = "141.22.88.82";
 //	private static final String CLIENT_IP = "192.168.1.90";
-	private static final String CLIENT_IP = "192.168.111.184";
-	private static final String CLIENT_PORT = "8181";
+	private static final String CLIENT_IP = "192.168.15.211";
+	private static final String CLIENT_PORT = "8585";
 
 	// private static final String joinOrCreate = "join";
 
@@ -102,6 +103,7 @@ public class Main {
 	}
 
 	private void start() {
+		System.out.println("My ID: " + chordImpl.getID());
 		System.out.println("type \"s\" for Start and \"q\" for Quit");
 		Set<Node> fingerSet = new HashSet<>(chordImpl.getFingerTable());
 		int playerCount = fingerSet.size();
@@ -111,6 +113,11 @@ public class Main {
 			if (playerCount != fingerSet.size()) {
 				System.out.print(" : " + fingerSet.size());
 				playerCount = fingerSet.size();
+			}
+			if (input.equals("b")) {
+				chordImpl.broadcast(chordImpl.getID(), false);
+				input = "";
+				break;
 			}
 			if (input.equals("s")) {
 				break;
